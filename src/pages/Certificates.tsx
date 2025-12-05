@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Award, Loader2, Plus, Download, Eye } from 'lucide-react';
+import { Search, Award, Loader2, Plus, Download, Eye, FileText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { downloadCertificatePDF } from '@/lib/pdf-generator';
 
 interface CertificateData {
   id: string;
@@ -46,12 +47,6 @@ interface CertificateData {
   status: string;
   created_at: string;
   students?: { full_name: string; admission_number: string };
-}
-
-interface Student {
-  id: string;
-  full_name: string;
-  admission_number: string;
 }
 
 interface Enrollment {
@@ -69,6 +64,7 @@ export default function Certificates() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewCert, setPreviewCert] = useState<CertificateData | null>(null);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     enrollment_id: '',
@@ -156,41 +152,25 @@ export default function Certificates() {
     });
   };
 
-  const handleDownload = (cert: CertificateData) => {
-    const content = `
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                              ║
-║                           GANISHKA TECHNOLOGY                                ║
-║                         Tech Coaching Institute                              ║
-║                                                                              ║
-║                      CERTIFICATE OF COMPLETION                               ║
-║                                                                              ║
-║                   Certificate No: ${cert.certificate_number.padEnd(20)}                   ║
-║                                                                              ║
-║                         This is to certify that                              ║
-║                                                                              ║
-║                          ${cert.students?.full_name?.padStart(30)}                            ║
-║                                                                              ║
-║              has successfully completed the training program in              ║
-║                                                                              ║
-║                          ${cert.course_name.padStart(30)}                            ║
-║                                                                              ║
-║                            Batch: ${cert.batch_name.padEnd(20)}                         ║
-║                                                                              ║
-${cert.grade ? `║                            Grade: ${cert.grade.padEnd(20)}                         ║\n` : ''}${cert.attendance_percentage ? `║                     Attendance: ${cert.attendance_percentage.toString().padEnd(5)}%                              ║\n` : ''}║                                                                              ║
-║                       Issue Date: ${format(new Date(cert.issue_date), 'dd MMM yyyy').padEnd(20)}                     ║
-║                                                                              ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-    `;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Certificate-${cert.certificate_number}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Certificate downloaded');
+  const handleDownload = async (cert: CertificateData) => {
+    setIsDownloading(cert.id);
+    try {
+      await downloadCertificatePDF({
+        certificate_number: cert.certificate_number,
+        student_name: cert.students?.full_name || '',
+        course_name: cert.course_name,
+        batch_name: cert.batch_name,
+        grade: cert.grade,
+        attendance_percentage: cert.attendance_percentage,
+        issue_date: format(new Date(cert.issue_date), 'dd MMMM yyyy'),
+        completion_date: cert.completion_date ? format(new Date(cert.completion_date), 'dd MMMM yyyy') : null,
+      });
+      toast.success('Certificate PDF opened - use Print > Save as PDF to download');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate PDF');
+    } finally {
+      setIsDownloading(null);
+    }
   };
 
   const filteredCertificates = certificates.filter(
@@ -234,9 +214,13 @@ ${cert.grade ? `║                            Grade: ${cert.grade.padEnd(20)}  
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPreviewCert(null)}>Close</Button>
-              <Button onClick={() => handleDownload(previewCert)}>
-                <Download className="h-4 w-4 mr-2" />
-                Download
+              <Button onClick={() => handleDownload(previewCert)} disabled={isDownloading === previewCert.id}>
+                {isDownloading === previewCert.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-2" />
+                )}
+                Download PDF
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -426,8 +410,18 @@ ${cert.grade ? `║                            Grade: ${cert.grade.padEnd(20)}  
                             <Button variant="ghost" size="icon" onClick={() => setPreviewCert(cert)} title="Preview">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDownload(cert)} title="Download">
-                              <Download className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDownload(cert)} 
+                              title="Download PDF"
+                              disabled={isDownloading === cert.id}
+                            >
+                              {isDownloading === cert.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </TableCell>

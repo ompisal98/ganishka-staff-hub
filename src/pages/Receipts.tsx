@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, FileDown, Receipt, IndianRupee, Loader2, Plus, Printer, Download } from 'lucide-react';
+import { Search, Receipt, IndianRupee, Loader2, Plus, FileText, Eye } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -34,6 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { downloadReceiptPDF } from '@/lib/pdf-generator';
 
 interface ReceiptData {
   id: string;
@@ -70,8 +71,8 @@ export default function Receipts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [previewReceipt, setPreviewReceipt] = useState<ReceiptData | null>(null);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     student_id: '',
@@ -172,38 +173,26 @@ export default function Receipts() {
     setEnrollments([]);
   };
 
-  const handlePrint = (receipt: ReceiptData) => {
-    setSelectedReceipt(receipt);
-    setTimeout(() => {
-      window.print();
-    }, 100);
-  };
-
-  const handleDownload = (receipt: ReceiptData) => {
-    // Create a simple receipt PDF content
-    const content = `
-      GANISHKA TECHNOLOGY
-      Receipt No: ${receipt.receipt_number}
-      Date: ${format(new Date(receipt.payment_date), 'dd/MM/yyyy')}
-      
-      Student: ${receipt.students?.full_name}
-      Admission No: ${receipt.students?.admission_number}
-      
-      Amount: ₹${receipt.amount.toLocaleString()}
-      Payment Mode: ${receipt.payment_mode.toUpperCase()}
-      ${receipt.description ? `Description: ${receipt.description}` : ''}
-      
-      Thank you for your payment!
-    `;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Receipt-${receipt.receipt_number}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Receipt downloaded');
+  const handleDownload = async (receipt: ReceiptData) => {
+    setIsDownloading(receipt.id);
+    try {
+      await downloadReceiptPDF({
+        receipt_number: receipt.receipt_number,
+        student_name: receipt.students?.full_name || '',
+        admission_number: receipt.students?.admission_number || '',
+        amount: receipt.amount,
+        payment_mode: receipt.payment_mode,
+        payment_date: format(new Date(receipt.payment_date), 'dd/MM/yyyy'),
+        description: receipt.description,
+        batch_name: receipt.enrollments?.batches?.name || null,
+        status: receipt.status,
+      });
+      toast.success('Receipt PDF opened - use Print > Save as PDF to download');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate PDF');
+    } finally {
+      setIsDownloading(null);
+    }
   };
 
   const filteredReceipts = receipts.filter(
@@ -225,61 +214,75 @@ export default function Receipts() {
     <div className="min-h-screen">
       <Header title="Receipts" subtitle="Generate and manage payment receipts" />
 
-      {/* Print Template - Hidden on screen */}
-      {selectedReceipt && (
-        <div className="hidden print:block" ref={printRef}>
-          <div className="p-8 max-w-lg mx-auto">
-            <div className="text-center border-b-2 pb-4 mb-4">
-              <h1 className="text-2xl font-bold">GANISHKA TECHNOLOGY</h1>
-              <p className="text-sm text-gray-600">Tech Coaching Institute</p>
-            </div>
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold">PAYMENT RECEIPT</h2>
-              <p className="font-mono">{selectedReceipt.receipt_number}</p>
-            </div>
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between">
-                <span>Date:</span>
-                <span>{format(new Date(selectedReceipt.payment_date), 'dd/MM/yyyy')}</span>
+      {/* Receipt Preview Modal */}
+      {previewReceipt && (
+        <Dialog open={!!previewReceipt} onOpenChange={() => setPreviewReceipt(null)}>
+          <DialogContent className="max-w-md">
+            <div className="space-y-4">
+              <div className="text-center p-4 bg-primary text-primary-foreground rounded-t-lg -m-6 mb-4">
+                <h2 className="text-xl font-bold">GANISHKA TECHNOLOGY</h2>
+                <p className="text-sm opacity-80">Tech Coaching Institute</p>
               </div>
-              <div className="flex justify-between">
-                <span>Student Name:</span>
-                <span>{selectedReceipt.students?.full_name}</span>
+              <div className="text-center border-b pb-4">
+                <h3 className="font-semibold">Payment Receipt</h3>
+                <p className="text-sm text-muted-foreground font-mono">{previewReceipt.receipt_number}</p>
               </div>
-              <div className="flex justify-between">
-                <span>Admission No:</span>
-                <span>{selectedReceipt.students?.admission_number}</span>
-              </div>
-              {selectedReceipt.enrollments?.batches && (
+              <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span>Batch:</span>
-                  <span>{selectedReceipt.enrollments.batches.name}</span>
+                  <span className="text-muted-foreground">Date</span>
+                  <span>{format(new Date(previewReceipt.payment_date), 'dd/MM/yyyy')}</span>
                 </div>
-              )}
-              <div className="flex justify-between border-t pt-3 mt-3">
-                <span className="font-semibold">Amount Paid:</span>
-                <span className="font-bold text-lg">₹{selectedReceipt.amount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Payment Mode:</span>
-                <span className="capitalize">{selectedReceipt.payment_mode}</span>
-              </div>
-              {selectedReceipt.description && (
                 <div className="flex justify-between">
-                  <span>Description:</span>
-                  <span>{selectedReceipt.description}</span>
+                  <span className="text-muted-foreground">Student</span>
+                  <span>{previewReceipt.students?.full_name}</span>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Admission No</span>
+                  <span>{previewReceipt.students?.admission_number}</span>
+                </div>
+                {previewReceipt.enrollments?.batches && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Batch</span>
+                    <span>{previewReceipt.enrollments.batches.name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Mode</span>
+                  <span className="capitalize">{previewReceipt.payment_mode.replace('_', ' ')}</span>
+                </div>
+                {previewReceipt.description && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Description</span>
+                    <span>{previewReceipt.description}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-3 mt-3">
+                  <span className="font-semibold">Amount Paid</span>
+                  <span className="text-xl font-bold text-primary">₹{previewReceipt.amount.toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <Badge variant={previewReceipt.status === 'valid' ? 'default' : 'destructive'}>
+                  {previewReceipt.status}
+                </Badge>
+              </div>
             </div>
-            <div className="border-t pt-4 mt-6 text-center text-sm text-gray-600">
-              <p>Thank you for your payment!</p>
-              <p className="mt-2">This is a computer-generated receipt.</p>
-            </div>
-          </div>
-        </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreviewReceipt(null)}>Close</Button>
+              <Button onClick={() => handleDownload(previewReceipt)} disabled={isDownloading === previewReceipt.id}>
+                {isDownloading === previewReceipt.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FileText className="h-4 w-4 mr-2" />
+                )}
+                Download PDF
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
-      <div className="p-6 space-y-6 no-print">
+      <div className="p-6 space-y-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -490,11 +493,21 @@ export default function Receipts() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handlePrint(receipt)} title="Print">
-                              <Printer className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" onClick={() => setPreviewReceipt(receipt)} title="Preview">
+                              <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDownload(receipt)} title="Download">
-                              <Download className="h-4 w-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDownload(receipt)} 
+                              title="Download PDF"
+                              disabled={isDownloading === receipt.id}
+                            >
+                              {isDownloading === receipt.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </TableCell>
