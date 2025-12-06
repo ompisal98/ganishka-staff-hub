@@ -146,22 +146,8 @@ export default function Settings() {
     }
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen">
-        <Header title="Settings" subtitle="System configuration" />
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <SettingsIcon className="h-16 w-16 mx-auto text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">Access Restricted</h3>
-              <p className="text-muted-foreground">Only administrators can access system settings</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Allow all authenticated users to view settings for now
+  // In production, you may want to restrict this to admins only
 
   if (isLoading) {
     return (
