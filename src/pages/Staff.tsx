@@ -237,48 +237,21 @@ export default function Staff() {
     setIsCreating(true);
 
     try {
-      // Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newStaffData.email,
-        password: newStaffData.password,
-        options: {
-          data: {
-            full_name: newStaffData.full_name,
-          },
+      // Use edge function to create user without affecting current session
+      const { data, error } = await supabase.functions.invoke('create-staff-user', {
+        body: {
+          email: newStaffData.email,
+          password: newStaffData.password,
+          full_name: newStaffData.full_name,
+          phone: newStaffData.phone,
+          designation: newStaffData.designation,
+          branch_id: newStaffData.branch_id,
+          role: newStaffData.role,
         },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      // Wait a bit for the trigger to create the staff profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Update staff profile with additional info
-      const { error: updateError } = await supabase
-        .from('staff_profiles')
-        .update({
-          phone: newStaffData.phone || null,
-          designation: newStaffData.designation || null,
-          branch_id: newStaffData.branch_id === 'none' ? null : newStaffData.branch_id || null,
-        })
-        .eq('user_id', authData.user.id);
-
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
-      }
-
-      // Assign role
-      if (newStaffData.role) {
-        const { error: roleError } = await supabase.from('user_roles').insert({
-          user_id: authData.user.id,
-          role: newStaffData.role as any,
-        });
-
-        if (roleError) {
-          console.error('Error assigning role:', roleError);
-        }
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Staff member added successfully');
       setIsAddDialogOpen(false);
