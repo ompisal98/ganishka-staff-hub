@@ -9,25 +9,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2, GraduationCap, Shield, Mail, Lock, User } from 'lucide-react';
 import { z } from 'zod';
-
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
 });
-
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
-  path: ["confirmPassword"],
+  path: ["confirmPassword"]
 });
-
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, isLoading: authLoading } = useAuth();
+  const {
+    user,
+    signIn,
+    signUp,
+    isLoading: authLoading
+  } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -36,23 +38,23 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
     }
   }, [user, navigate]);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    
     try {
-      const validated = loginSchema.parse({ email: loginEmail, password: loginPassword });
+      const validated = loginSchema.parse({
+        email: loginEmail,
+        password: loginPassword
+      });
       setIsLoading(true);
-      
-      const { error } = await signIn(validated.email, validated.password);
-      
+      const {
+        error
+      } = await signIn(validated.email, validated.password);
       if (error) {
         if (error.message.includes('Invalid login')) {
           toast.error('Invalid email or password');
@@ -66,7 +68,7 @@ export default function Auth() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        err.errors.forEach((e) => {
+        err.errors.forEach(e => {
           if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
         });
         setErrors(fieldErrors);
@@ -75,22 +77,20 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    
     try {
       const validated = signupSchema.parse({
         fullName: signupName,
         email: signupEmail,
         password: signupPassword,
-        confirmPassword: signupConfirmPassword,
+        confirmPassword: signupConfirmPassword
       });
-      
       setIsLoading(true);
-      const { error } = await signUp(validated.email, validated.password, validated.fullName);
-      
+      const {
+        error
+      } = await signUp(validated.email, validated.password, validated.fullName);
       if (error) {
         if (error.message.includes('already registered')) {
           toast.error('This email is already registered');
@@ -104,7 +104,7 @@ export default function Auth() {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        err.errors.forEach((e) => {
+        err.errors.forEach(e => {
           if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
         });
         setErrors(fieldErrors);
@@ -113,17 +113,12 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
-
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+    return <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen flex bg-muted/30">
+  return <div className="min-h-screen flex bg-muted/30">
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 gradient-primary p-12 flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAzMHYySDI0di0yaDEyek0zNiAyNnYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
@@ -140,8 +135,7 @@ export default function Auth() {
 
         <div className="relative z-10 space-y-8">
           <div>
-            <h1 className="text-4xl font-display font-bold text-white mb-4 leading-tight">
-              Staff Management<br />Portal
+            <h1 className="text-4xl font-display font-bold text-white mb-4 leading-tight">Connect Portal<br />Portal
             </h1>
             <p className="text-white/80 text-lg max-w-md">
               Comprehensive ERP system for managing students, courses, batches, attendance, and more.
@@ -149,17 +143,22 @@ export default function Auth() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {[
-              { icon: '📚', label: 'Course Management' },
-              { icon: '👥', label: 'Student Records' },
-              { icon: '📊', label: 'Attendance Tracking' },
-              { icon: '🎓', label: 'Certificate Generation' },
-            ].map((feature, i) => (
-              <div key={i} className="flex items-center gap-3 bg-white/10 rounded-lg p-3">
+            {[{
+            icon: '📚',
+            label: 'Course Management'
+          }, {
+            icon: '👥',
+            label: 'Student Records'
+          }, {
+            icon: '📊',
+            label: 'Attendance Tracking'
+          }, {
+            icon: '🎓',
+            label: 'Certificate Generation'
+          }].map((feature, i) => <div key={i} className="flex items-center gap-3 bg-white/10 rounded-lg p-3">
                 <span className="text-2xl">{feature.icon}</span>
                 <span className="text-white/90 text-sm font-medium">{feature.label}</span>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
 
@@ -198,14 +197,7 @@ export default function Auth() {
                       <Label htmlFor="login-email">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="login-email"
-                          type="email"
-                          placeholder="staff@ganishka.com"
-                          value={loginEmail}
-                          onChange={(e) => setLoginEmail(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="login-email" type="email" placeholder="staff@ganishka.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="pl-10" />
                       </div>
                       {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                     </div>
@@ -214,27 +206,16 @@ export default function Auth() {
                       <Label htmlFor="login-password">Password</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="login-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={loginPassword}
-                          onChange={(e) => setLoginPassword(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="login-password" type="password" placeholder="••••••••" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="pl-10" />
                       </div>
                       {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                     </div>
 
                     <Button type="submit" className="w-full" variant="gradient" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
+                      {isLoading ? <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Signing in...
-                        </>
-                      ) : (
-                        'Sign In'
-                      )}
+                        </> : 'Sign In'}
                     </Button>
                   </form>
                 </TabsContent>
@@ -245,14 +226,7 @@ export default function Auth() {
                       <Label htmlFor="signup-name">Full Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-name"
-                          type="text"
-                          placeholder="John Doe"
-                          value={signupName}
-                          onChange={(e) => setSignupName(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={e => setSignupName(e.target.value)} className="pl-10" />
                       </div>
                       {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                     </div>
@@ -261,14 +235,7 @@ export default function Auth() {
                       <Label htmlFor="signup-email">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="staff@ganishka.com"
-                          value={signupEmail}
-                          onChange={(e) => setSignupEmail(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="signup-email" type="email" placeholder="staff@ganishka.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} className="pl-10" />
                       </div>
                       {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                     </div>
@@ -277,14 +244,7 @@ export default function Auth() {
                       <Label htmlFor="signup-password">Password</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={signupPassword}
-                          onChange={(e) => setSignupPassword(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="signup-password" type="password" placeholder="••••••••" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} className="pl-10" />
                       </div>
                       {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                     </div>
@@ -293,27 +253,16 @@ export default function Auth() {
                       <Label htmlFor="signup-confirm">Confirm Password</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="signup-confirm"
-                          type="password"
-                          placeholder="••••••••"
-                          value={signupConfirmPassword}
-                          onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                          className="pl-10"
-                        />
+                        <Input id="signup-confirm" type="password" placeholder="••••••••" value={signupConfirmPassword} onChange={e => setSignupConfirmPassword(e.target.value)} className="pl-10" />
                       </div>
                       {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                     </div>
 
                     <Button type="submit" className="w-full" variant="gradient" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
+                      {isLoading ? <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Creating account...
-                        </>
-                      ) : (
-                        'Create Account'
-                      )}
+                        </> : 'Create Account'}
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">
@@ -330,6 +279,5 @@ export default function Auth() {
           </p>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
