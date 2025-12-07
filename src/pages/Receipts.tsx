@@ -45,9 +45,10 @@ interface ReceiptData {
   description: string | null;
   remarks: string | null;
   status: string;
+  receipt_type: string | null;
   created_at: string;
   students?: { full_name: string; admission_number: string };
-  enrollments?: { batches?: { name: string; code: string } } | null;
+  enrollments?: { batches?: { name: string; code: string; courses?: { name: string } } } | null;
 }
 
 interface Student {
@@ -60,7 +61,7 @@ interface Enrollment {
   id: string;
   student_id: string;
   batch_id: string;
-  batches?: { name: string; code: string };
+  batches?: { name: string; code: string; courses?: { name: string } };
 }
 
 export default function Receipts() {
@@ -79,6 +80,7 @@ export default function Receipts() {
     enrollment_id: '',
     amount: '',
     payment_mode: 'cash',
+    receipt_type: 'GA',
     description: '',
     remarks: '',
   });
@@ -92,7 +94,7 @@ export default function Receipts() {
       const [receiptsRes, studentsRes] = await Promise.all([
         supabase
           .from('receipts')
-          .select('*, students(full_name, admission_number), enrollments(batches(name, code))')
+          .select('*, students(full_name, admission_number), enrollments(batches(name, code, courses(name)))')
           .order('created_at', { ascending: false }),
         supabase.from('students').select('id, full_name, admission_number').eq('is_active', true),
       ]);
@@ -114,7 +116,7 @@ export default function Receipts() {
     try {
       const { data, error } = await supabase
         .from('enrollments')
-        .select('id, student_id, batch_id, batches(name, code)')
+        .select('id, student_id, batch_id, batches(name, code, courses(name))')
         .eq('student_id', studentId)
         .eq('status', 'active');
 
@@ -144,6 +146,7 @@ export default function Receipts() {
         enrollment_id: formData.enrollment_id || null,
         amount: parseFloat(formData.amount),
         payment_mode: formData.payment_mode as any,
+        receipt_type: formData.receipt_type,
         description: formData.description || null,
         remarks: formData.remarks || null,
       }]);
@@ -167,6 +170,7 @@ export default function Receipts() {
       enrollment_id: '',
       amount: '',
       payment_mode: 'cash',
+      receipt_type: 'GA',
       description: '',
       remarks: '',
     });
@@ -185,6 +189,8 @@ export default function Receipts() {
         payment_date: format(new Date(receipt.payment_date), 'dd/MM/yyyy'),
         description: receipt.description,
         batch_name: receipt.enrollments?.batches?.name || null,
+        course_name: receipt.enrollments?.batches?.courses?.name || null,
+        receipt_type: receipt.receipt_type || 'GA',
         status: receipt.status,
       });
       toast.success('Receipt PDF opened - use Print > Save as PDF to download');
@@ -241,11 +247,23 @@ export default function Receipts() {
                   <span>{previewReceipt.students?.admission_number}</span>
                 </div>
                 {previewReceipt.enrollments?.batches && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Batch</span>
-                    <span>{previewReceipt.enrollments.batches.name}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Batch</span>
+                      <span>{previewReceipt.enrollments.batches.name}</span>
+                    </div>
+                    {previewReceipt.enrollments.batches.courses && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Course</span>
+                        <span>{previewReceipt.enrollments.batches.courses.name}</span>
+                      </div>
+                    )}
+                  </>
                 )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Receipt Type</span>
+                  <Badge variant="outline">{previewReceipt.receipt_type || 'GA'}</Badge>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Payment Mode</span>
                   <span className="capitalize">{previewReceipt.payment_mode.replace('_', ' ')}</span>
@@ -355,7 +373,7 @@ export default function Receipts() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="amount">Amount (₹) *</Label>
                         <Input
@@ -383,6 +401,21 @@ export default function Receipts() {
                                 {mode.label}
                               </SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="receipt_type">Receipt Type *</Label>
+                        <Select
+                          value={formData.receipt_type}
+                          onValueChange={(value) => setFormData({ ...formData, receipt_type: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="GA">GA (Ganishka Academy)</SelectItem>
+                            <SelectItem value="GT">GT (Ganishka Technology)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
