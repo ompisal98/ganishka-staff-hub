@@ -178,7 +178,7 @@ export default function Staff() {
           full_name: formData.full_name,
           phone: formData.phone || null,
           designation: formData.designation || null,
-          branch_id: formData.branch_id || null,
+          branch_id: formData.branch_id === 'none' ? null : formData.branch_id || null,
           is_active: formData.is_active,
         })
         .eq('id', editingStaff.id);
@@ -260,7 +260,7 @@ export default function Staff() {
         .update({
           phone: newStaffData.phone || null,
           designation: newStaffData.designation || null,
-          branch_id: newStaffData.branch_id || null,
+          branch_id: newStaffData.branch_id === 'none' ? null : newStaffData.branch_id || null,
         })
         .eq('user_id', authData.user.id);
 
@@ -383,7 +383,7 @@ export default function Staff() {
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Branch</SelectItem>
+                  <SelectItem value="none">No Branch</SelectItem>
                   {branches.map((branch) => (
                     <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
@@ -518,7 +518,7 @@ export default function Staff() {
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Branch</SelectItem>
+                    <SelectItem value="none">No Branch</SelectItem>
                     {branches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
                         {branch.name}
