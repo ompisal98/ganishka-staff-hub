@@ -11,6 +11,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, MoreHorizontal, Pencil, UserCog, Loader2, Shield, Phone, Mail, Building2 } from 'lucide-react';
+import { Search, MoreHorizontal, Pencil, UserCog, Loader2, Shield, Phone, Mail, Building2, Plus, UserPlus } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +87,8 @@ export default function Staff() {
   const [selectedStaffForRoles, setSelectedStaffForRoles] = useState<StaffProfile | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -93,6 +96,16 @@ export default function Staff() {
     designation: '',
     branch_id: '',
     is_active: true,
+  });
+
+  const [newStaffData, setNewStaffData] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    phone: '',
+    designation: '',
+    branch_id: '',
+    role: 'reception' as string,
   });
 
   useEffect(() => {
@@ -217,6 +230,74 @@ export default function Staff() {
     setSelectedRoles(prev =>
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreating(true);
+
+    try {
+      // Create user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newStaffData.email,
+        password: newStaffData.password,
+        options: {
+          data: {
+            full_name: newStaffData.full_name,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user');
+
+      // Wait a bit for the trigger to create the staff profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update staff profile with additional info
+      const { error: updateError } = await supabase
+        .from('staff_profiles')
+        .update({
+          phone: newStaffData.phone || null,
+          designation: newStaffData.designation || null,
+          branch_id: newStaffData.branch_id || null,
+        })
+        .eq('user_id', authData.user.id);
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+      }
+
+      // Assign role
+      if (newStaffData.role) {
+        const { error: roleError } = await supabase.from('user_roles').insert({
+          user_id: authData.user.id,
+          role: newStaffData.role as any,
+        });
+
+        if (roleError) {
+          console.error('Error assigning role:', roleError);
+        }
+      }
+
+      toast.success('Staff member added successfully');
+      setIsAddDialogOpen(false);
+      setNewStaffData({
+        email: '',
+        password: '',
+        full_name: '',
+        phone: '',
+        designation: '',
+        branch_id: '',
+        role: 'reception',
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Error adding staff:', error);
+      toast.error(error.message || 'Failed to add staff member');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const toggleActive = async (staff: StaffProfile) => {
@@ -368,17 +449,142 @@ export default function Staff() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Staff Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Staff Member</DialogTitle>
+            <DialogDescription>Create a new staff account with login credentials</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddStaff} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Full Name *</Label>
+                <Input
+                  value={newStaffData.full_name}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, full_name: e.target.value })}
+                  placeholder="Enter full name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  value={newStaffData.phone}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  value={newStaffData.email}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, email: e.target.value })}
+                  placeholder="staff@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Password *</Label>
+                <Input
+                  type="password"
+                  value={newStaffData.password}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, password: e.target.value })}
+                  placeholder="Min 6 characters"
+                  minLength={6}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Designation</Label>
+                <Input
+                  value={newStaffData.designation}
+                  onChange={(e) => setNewStaffData({ ...newStaffData, designation: e.target.value })}
+                  placeholder="e.g., Senior Trainer"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Branch</Label>
+                <Select
+                  value={newStaffData.branch_id}
+                  onValueChange={(value) => setNewStaffData({ ...newStaffData, branch_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Branch</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Role *</Label>
+              <Select
+                value={newStaffData.role}
+                onValueChange={(value) => setNewStaffData({ ...newStaffData, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating}>
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Staff
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-6 space-y-6">
         <Card>
           <CardContent className="p-4">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search staff by name, email, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search staff by name, email, or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Staff
+              </Button>
             </div>
           </CardContent>
         </Card>

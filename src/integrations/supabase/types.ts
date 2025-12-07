@@ -399,6 +399,7 @@ export type Database = {
           payment_date: string
           payment_mode: Database["public"]["Enums"]["payment_mode"]
           receipt_number: string
+          receipt_type: string | null
           remarks: string | null
           status: Database["public"]["Enums"]["receipt_status"]
           student_id: string
@@ -416,6 +417,7 @@ export type Database = {
           payment_date?: string
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
           receipt_number: string
+          receipt_type?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["receipt_status"]
           student_id: string
@@ -433,6 +435,7 @@ export type Database = {
           payment_date?: string
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
           receipt_number?: string
+          receipt_type?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["receipt_status"]
           student_id?: string

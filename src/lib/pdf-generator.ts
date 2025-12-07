@@ -21,6 +21,8 @@ interface ReceiptData {
   payment_date: string;
   description?: string | null;
   batch_name?: string | null;
+  course_name?: string | null;
+  receipt_type?: string;
   status: string;
 }
 
@@ -333,7 +335,7 @@ function generateReceiptHTML(data: ReceiptData): string {
     }
     
     .header {
-      background: linear-gradient(135deg, #1F5AA6 0%, #2563eb 100%);
+      background: linear-gradient(135deg, ${data.receipt_type === 'GT' ? '#1F5AA6' : '#16a34a'} 0%, ${data.receipt_type === 'GT' ? '#2563eb' : '#22c55e'} 100%);
       color: white;
       padding: 25px;
       text-align: center;
@@ -420,7 +422,7 @@ function generateReceiptHTML(data: ReceiptData): string {
     .amount-value {
       font-size: 26px;
       font-weight: 700;
-      color: #1F5AA6;
+      color: ${data.receipt_type === 'GT' ? '#1F5AA6' : '#16a34a'};
     }
     
     .status-section {
@@ -456,8 +458,8 @@ function generateReceiptHTML(data: ReceiptData): string {
 <body>
   <div class="receipt">
     <div class="header">
-      <div class="logo">GANISHKA TECHNOLOGY</div>
-      <div class="subtitle">Tech Coaching Institute</div>
+      <div class="logo">${data.receipt_type === 'GT' ? 'GANISHKA TECHNOLOGY' : 'GANISHKA ACADEMY'}</div>
+      <div class="subtitle">${data.receipt_type === 'GT' ? 'Tech Coaching Institute' : 'Education Institute'}</div>
     </div>
     
     <div class="receipt-title">
@@ -482,6 +484,14 @@ function generateReceiptHTML(data: ReceiptData): string {
         <span class="label">Batch</span>
         <span class="value">${data.batch_name}</span>
       </div>` : ''}
+      ${data.course_name ? `<div class="row">
+        <span class="label">Course</span>
+        <span class="value">${data.course_name}</span>
+      </div>` : ''}
+      <div class="row">
+        <span class="label">Receipt Type</span>
+        <span class="value">${data.receipt_type || 'GA'}</span>
+      </div>
       <div class="row">
         <span class="label">Payment Mode</span>
         <span class="value">${data.payment_mode.charAt(0).toUpperCase() + data.payment_mode.slice(1).replace('_', ' ')}</span>
